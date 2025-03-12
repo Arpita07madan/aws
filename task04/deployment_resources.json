@@ -14,7 +14,10 @@
             "dynamodb:DeleteItem",
             "ssm:PutParameter",
             "ssm:GetParameter",
-            "kms:Decrypt"
+            "kms:Decrypt",
+            "sqs:ReceiveMessage",
+            "sqs:DeleteMessage",
+            "sqs:GetQueueAttributes"
           ],
           "Effect": "Allow",
           "Resource": "*"
@@ -28,7 +31,7 @@
   "async_queue": {
     "resource_type": "sqs_queue",
     "fifo_queue": false,
-    "visibility_timeout": 30,
+    "visibility_timeout": 150,
     "delay_seconds": 0,
     "maximum_message_size": 1024,
     "message_retention_period": 60,
@@ -36,18 +39,11 @@
     "policy": {},
     "redrive_policy": {},
     "content_based_deduplication": false,
-    "tags": {},
-    "lambda_triggers": [
-      {
-        "lambda_name": "sqs_handler",
-        "batch_size": 10,
-        "enabled": true
-      }
-    ]
+    "tags": {}
   },
   "lambda_topic": {
     "resource_type": "sns_topic",
-    "region": "us-east-1",
+    "region": "eu-west-1",
     "event_sources": [],
     "tags": {}
   }
