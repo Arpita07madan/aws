@@ -9,7 +9,6 @@ export const handler = async (event) => {
     try {
         console.log("Received event:", JSON.stringify(event, null, 2));
 
-
         let inputEvent;
         try {
             inputEvent = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
@@ -20,7 +19,6 @@ export const handler = async (event) => {
                 body: JSON.stringify({ message: "Invalid JSON format in request body" })
             };
         }
-
 
         if (!inputEvent?.principalId || inputEvent?.content === undefined) {
             console.error("Validation failed: Missing required fields", inputEvent);
@@ -34,7 +32,7 @@ export const handler = async (event) => {
         const createdAt = new Date().toISOString();
 
         const eventItem = {
-            event_id: eventId,
+            id: eventId,
             principalId: Number(inputEvent.principalId),
             createdAt,
             body: inputEvent.content
@@ -42,18 +40,21 @@ export const handler = async (event) => {
 
         console.log("Saving to DynamoDB:", JSON.stringify(eventItem, null, 2));
 
-
-        await dynamoDBClient.send(new PutCommand({
+        const response = await dynamoDBClient.send(new PutCommand({
             TableName: TABLE_NAME,
-            Item: eventItem
+            Item: eventItem,
         }));
-
         console.log("Saved successfully");
 
-        return {
+        console.log("DynamoDB Response:", response);
+
+        const responseObject = {
             statusCode: 201,
-            body: JSON.stringify({ statusCode: 201, event: eventItem })
+            body: JSON.stringify({statusCode : 201, event : eventItem})
         };
+
+        console.log("Final response:", JSON.stringify(responseObject, null, 2));
+        return responseObject;
 
     } catch (error) {
         console.error("Error processing request:", error);
