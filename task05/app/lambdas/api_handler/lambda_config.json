@@ -7,16 +7,23 @@
   "runtime": "nodejs20.x",
   "memory": 128,
   "timeout": 100,
-  "lambda_path": "lambdas\\api_handler",
+  "lambda_path": "lambdas/api_handler",
   "dependencies": [
     {
       "resource_name": "Events",
       "resource_type": "dynamodb_table"
     }
   ],
-  "event_sources": [],
+  "event_sources": [
+    {
+      "resource_name": "task5_api",
+      "resource_type": "api_gateway",
+      "http_method": "POST",
+      "resource_path": "/events"
+    }
+  ],
   "env_variables": {
-     "TABLE_NAME": "Events"
+    "TABLE_NAME": "Events"
   },
   "publish_version": true,
   "alias": "${lambdas_alias_name}",
