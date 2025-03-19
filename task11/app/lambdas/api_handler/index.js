@@ -64,85 +64,109 @@ function corsHeaders() {
 
 // Helper function for formatting responses
 function formatResponse(statusCode, body) {
-  return {
-    statusCode: statusCode,
-    headers: corsHeaders(),
-    body: JSON.stringify(body)
-  };
-}
+    return {
+      statusCode: statusCode,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body),
+      isBase64Encoded: false
+    };
+  }
+  
 
 // SignUp handler
 async function handleSignup(event) {
-  try {
-    const { firstName, lastName, email, password } = JSON.parse(event.body);
-    if (!firstName || !lastName || !email || !password) {
-      return formatResponse(400, { error: "All fields are required." });
+    try {
+      const { firstName, lastName, email, password } = JSON.parse(event.body);
+  
+      // Validate inputs
+      if (!firstName || !lastName || !email || !password) {
+        return formatResponse(400, { error: "All fields are required." });
+      }
+      if (!/^[\w.%+-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+        return formatResponse(400, { error: "Invalid email format." });
+      }
+      if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[$%^*-_])[A-Za-z\d$%^*-_]{12,}$/.test(password)) {
+        return formatResponse(400, { error: "Invalid password format." });
+      }
+  
+      // Create user with temporary password
+      await cognito.adminCreateUser({
+        UserPoolId: USER_POOL_ID,
+        Username: email,
+        UserAttributes: [
+          { Name: "given_name", Value: firstName },
+          { Name: "family_name", Value: lastName },
+          { Name: "email", Value: email },
+          { Name: "email_verified", Value: "true" }
+        ],
+        TemporaryPassword: "Temp@1234",
+        MessageAction: "SUPPRESS",
+      }).promise();
+  
+      // Set the permanent password
+      await cognito.adminSetUserPassword({
+        UserPoolId: USER_POOL_ID,
+        Username: email,
+        Password: password,
+        Permanent: true
+      }).promise();
+  
+      return formatResponse(200, { message: "User created successfully." });
+  
+    } catch (error) {
+      console.error("Signup error:", error);
+  
+      // Handle known Cognito errors
+      if (error.code === "UsernameExistsException") {
+        return formatResponse(400, { error: "Email already exists." });
+      }
+      if (error.code === "InvalidPasswordException") {
+        return formatResponse(400, { error: "Password does not meet requirements." });
+      }
+  
+      return formatResponse(500, { error: "Signup failed." });
     }
-    if (!/^[\w.%+-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(email)) {
-      return formatResponse(400, { error: "Invalid email format." });
-    }
-    if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[$%^*-_])[A-Za-z\d$%^*-_]{12,}$/.test(password)) {
-      return formatResponse(400, { error: "Invalid password format." });
-    }
-    await cognito.adminCreateUser({
-      UserPoolId: USER_POOL_ID,
-      Username: email,
-      UserAttributes: [
-        { Name: "given_name", Value: firstName },
-        { Name: "family_name", Value: lastName },
-        { Name: "email", Value: email },
-        { Name: "email_verified", Value: "true" }
-      ],
-      TemporaryPassword: password,
-      MessageAction: "SUPPRESS",
-    }).promise();
-    await cognito.adminSetUserPassword({
-      UserPoolId: USER_POOL_ID,
-      Username: email,
-      Password: password,
-      Permanent: true
-    }).promise();
-    return formatResponse(200, { message: "User created successfully." });
-  } catch (error) {
-    console.error("Signup error:", error);
-    if (error.code === "UsernameExistsException") {
-      return formatResponse(400, { error: "Email already exists." });
-    }
-    return formatResponse(502, { error: "Signup failed." });
   }
-}
+  
 
 //Signin Handler
 async function handleSignin(event) {
-  try {
-    const { email, password } = JSON.parse(event.body);
-    const getUserParams = {
-      UserPoolId: USER_POOL_ID,
-      Filter: `email = "${email}"`,
-      Limit: 1
-    };
-    const users = await cognito.listUsers(getUserParams).promise();
-    if (!users.Users.length) {
-      return formatResponse(400, { error: "User does not exist." });
-    }
-    const username = users.Users[0].Username;
-    const params = {
-      AuthFlow: "ADMIN_USER_PASSWORD_AUTH",
-      UserPoolId: USER_POOL_ID,
-      ClientId: CLIENT_ID,
-      AuthParameters: {
-        USERNAME: username,
-        PASSWORD: password
+    try {
+      const { email, password } = JSON.parse(event.body);
+  
+      const params = {
+        AuthFlow: "ADMIN_USER_PASSWORD_AUTH",
+        UserPoolId: USER_POOL_ID,
+        ClientId: CLIENT_ID,
+        AuthParameters: {
+          USERNAME: email,
+          PASSWORD: password
+        }
+      };
+  
+      const authResponse = await cognito.adminInitiateAuth(params).promise();
+  
+      return formatResponse(200, {
+        accessToken: authResponse.AuthenticationResult?.IdToken
+      });
+  
+    } catch (error) {
+      console.error("Signin error:", error);
+  
+      if (error.code === "NotAuthorizedException") {
+        return formatResponse(400, { error: "Incorrect email or password." });
       }
-    };
-    const authResponse = await cognito.adminInitiateAuth(params).promise();
-    return formatResponse(200, {
-      accessToken: authResponse.AuthenticationResult?.IdToken
-    });
-  } catch (error) {
-    return formatResponse(400, { error: error.message });
+      if (error.code === "UserNotFoundException") {
+        return formatResponse(400, { error: "User does not exist." });
+      }
+  
+      return formatResponse(500, { error: "Signin failed." });
+    }
   }
-}
+  
 
 // Table View
 async function handleGetTables(event) {
