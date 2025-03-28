@@ -405,7 +405,6 @@
           }
         }
       },
-      
         "x-amazon-apigateway-integration": {
           "httpMethod": "POST",
           "uri": "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:890742610830:function:api_handler/invocations",
@@ -472,18 +471,37 @@
         }
       }
     },
-    "/tables/{tableId}": {
-      "get": {
-        "parameters": [
-          {
-            "name": "tableId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
+    "/signup": {
+      "post": {
+        "summary": "User Sign Up",
+        "description": "Registers a new user by creating a new account with provided details.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username",
+                  "email",
+                  "password"
+                ]
+              }
             }
           }
-        ],
+        },
         "responses": {
           "200": {
             "description": "200 response",
@@ -501,13 +519,25 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request, validation error",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
-        "security": [
-          {
-            "authorizer": []
-          }
-        ],
         "x-amazon-apigateway-integration": {
           "httpMethod": "POST",
           "uri": "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:890742610830:function:api_handler/invocations",
@@ -524,16 +554,8 @@
         }
       },
       "options": {
-        "parameters": [
-          {
-            "name": "tableId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "summary": "CORS Preflight",
+        "description": "Handles CORS preflight requests to allow cross-origin requests for the signup endpoint.",
         "responses": {
           "200": {
             "description": "200 response",
@@ -582,8 +604,21 @@
         }
       }
     },
-    "/signup": {
-      "post": {
+    "/tables/{tableId}": {
+      "get": {
+        "summary": "Get Table Details",
+        "description": "Fetches details of a specific table based on the given `tableId`.",
+        "parameters": [
+          {
+            "name": "tableId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The unique identifier for the table."
+          }
+        ],
         "responses": {
           "200": {
             "description": "200 response",
@@ -601,8 +636,30 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Table not found",
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
+        "security": [
+          {
+            "authorizer": []
+          }
+        ],
         "x-amazon-apigateway-integration": {
           "httpMethod": "POST",
           "uri": "arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:890742610830:function:api_handler/invocations",
@@ -695,7 +752,9 @@
         "in": "header",
         "x-amazon-apigateway-authtype": "cognito_user_pools",
         "x-amazon-apigateway-authorizer": {
-          "x-syndicate-cognito-userpool-names": ["${booking_userpool}"],
+          "x-syndicate-cognito-userpool-names": [
+            "${booking_userpool}"
+          ],
           "type": "cognito_user_pools"
         }
       }
